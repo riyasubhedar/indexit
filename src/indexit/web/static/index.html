@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IndexIt</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Left third: conversations and the library, always visible -->
+    <aside class="sidebar" id="sidebar" aria-label="Conversations and library">
+      <div class="side-head">
+        <div class="brand">
+          <h1>IndexIt</h1>
+          <p class="tagline" id="tagline">The fine print, made simple.</p>
+        </div>
+        <button type="button" id="new-btn" class="link">+ New conversation</button>
+      </div>
+
+      <section class="side-section conversations" aria-labelledby="conversations-title">
+        <h2 id="conversations-title">Conversations</h2>
+        <ul id="history" class="history"></ul>
+      </section>
+
+      <section class="side-section library" aria-labelledby="library-title">
+        <div class="section-head">
+          <h2 id="library-title">Library</h2>
+          <button type="button" id="add-btn" class="link">+ Add filing</button>
+        </div>
+        <p class="library-count" id="library-count"></p>
+        <div class="library-scroll">
+          <p id="pending-note" class="pending-note" hidden></p>
+          <ul id="companies" class="companies"></ul>
+        </div>
+      </section>
+    </aside>
+
+    <!-- Right two-thirds: the conversation -->
+    <div class="main" id="main">
+      <main id="thread" aria-live="polite">
+        <section id="empty" class="empty">
+          <p>Ask anything about the annual reports (10-Ks) in your library. Every fact comes with the page it came from, so you can check it.</p>
+          <p class="muted">Try one of these:</p>
+          <ol class="suggestions">
+            <li><button type="button" class="ask-this">How does Tesla make money besides selling cars?</button></li>
+            <li><button type="button" class="ask-this">What are JPMorgan's biggest risks right now?</button></li>
+            <li><button type="button" class="ask-this">How fast is Microsoft's cloud business growing?</button></li>
+          </ol>
+        </section>
+      </main>
+
+      <form id="composer" autocomplete="off">
+        <span class="prompt" aria-hidden="true">&gt;</span>
+        <textarea id="question" rows="1" placeholder="Type a question…" aria-label="Your question" autofocus></textarea>
+        <button type="submit" id="send" aria-label="Send question">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <button type="button" id="sidebar-toggle" class="sidebar-toggle">Conversations &amp; library</button>
+
+  <dialog id="add-dialog" aria-labelledby="add-title">
+    <div class="dialog-head">
+      <h2 id="add-title">Add filings</h2>
+      <button type="button" id="add-close" class="link" aria-label="Close">Close ×</button>
+    </div>
+    <div class="dialog-body">
+      <form id="add-form" class="add-form" autocomplete="off" novalidate>
+        <fieldset class="methods">
+          <label><input type="radio" name="method" value="upload" checked> Upload PDFs</label>
+          <label><input type="radio" name="method" value="sec"> Fetch from the SEC</label>
+        </fieldset>
+        <div class="drop" id="drop">
+          <span id="drop-label">Drop one or more PDFs here or</span>
+          <label class="link">choose files<input type="file" id="file-input" accept="application/pdf,.pdf" multiple hidden></label>
+          <p class="hint">IndexIt reads the company and fiscal year from each cover page. You'll check them before anything is added.</p>
+        </div>
+        <div class="sec-fields" id="sec-fields" hidden>
+          <div class="fields">
+            <label>Company <input name="company" placeholder="e.g. Costco or COST"></label>
+            <label>Fiscal year <input name="year" inputmode="numeric" maxlength="4" placeholder="2025"></label>
+          </div>
+          <p class="hint">The year the fiscal year ends in (NVIDIA's year ending Jan 2026 is 2026).</p>
+        </div>
+        <div class="sec-contact" id="sec-contact" hidden>
+          <p class="hint">The SEC asks every app that downloads filings for a contact email. IndexIt saves it on this Mac and sends it only to the SEC.</p>
+          <label>Contact email <input type="email" id="sec-email" autocomplete="off" spellcheck="false"></label>
+          <button type="button" id="sec-save" class="new-btn">Save</button>
+        </div>
+        <p class="add-status" id="add-status" role="status"></p>
+        <div class="row-actions">
+          <button type="button" id="add-cancel" class="link">Cancel</button>
+          <button type="submit" id="add-submit" class="new-btn">Continue</button>
+        </div>
+      </form>
+      <div id="incoming" hidden></div>
+    </div>
+  </dialog>
+
+  <dialog id="added-dialog" class="added" aria-labelledby="added-title">
+    <div class="dialog-head">
+      <h2 id="added-title">Added to your library</h2>
+      <button type="button" id="added-close" class="link" aria-label="Close">Close ×</button>
+    </div>
+    <div class="dialog-body">
+      <ul id="added-list" class="added-list"></ul>
+      <p class="added-eta" id="added-eta"></p>
+      <p class="hint" id="added-hint"></p>
+    </div>
+    <div class="countdown" aria-hidden="true"></div>
+  </dialog>
+
+  <aside id="panel" hidden aria-labelledby="panel-title">
+    <div class="panel-head">
+      <h2 id="panel-title"></h2>
+      <button type="button" id="panel-close" class="link" aria-label="Close panel">Close ×</button>
+    </div>
+    <div id="panel-body"></div>
+  </aside>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# Personal data and large local files: never committed (scripts/check_private.py blocks them too)
+data/
+*.pdf
+.private-terms
+.env
+.env.*
+
+# Local environment and generated files
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.log

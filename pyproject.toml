@@ -1,0 +1,23 @@
+[project]
+name = "indexit"
+version = "0.1.0"
+description = "Ask questions across a folder of 10-K filings (text + tables), with page citations"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=2.1.0",
+    "claude-agent-sdk>=0.2.173",
+    "docling>=2.141.0",
+    "lancedb>=0.40.0",
+    "mcp>=2.3.0",
+    "pymupdf>=2.0",
+    "sentence-transformers>=6.2.0",
+    "starlette>=1.9.0",
+    "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+indexit = "indexit.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.4,<0.14.0"]
+build-backend = "uv_build"
