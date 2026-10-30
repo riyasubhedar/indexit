@@ -94,7 +94,7 @@ uv run indexit eval-search                      # search-only eval (free, local)
 
 ## Limitations
 
-- **Text and tables only.** Charts aren't read as images yet. 10-Ks rarely need that; investor presentations would.
+- **Text and tables only, by design.** I set out to build multimodal RAG (reading charts as images), but the evidence showed 10-Ks don't need it: the numbers live in tables, which Docling extracts with their headers, and the one recurring chart prints its data as a table right below it. Chart-heavy documents such as investor presentations would need it.
 - **About 1 in 10 answers** still overstates a summary claim, even when its cited facts are correct.
 - **Designed and tested on US 10-Ks.** Other filing types haven't been evaluated.
 - **Not financial advice.**

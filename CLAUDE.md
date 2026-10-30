@@ -1,6 +1,6 @@
 # IndexIt
 
-Multimodal RAG over a local folder of financial PDFs (text + tables + charts), with citations.
+RAG over a local folder of financial PDFs (text + structured tables), with citations. Multimodal (reading charts as images) was scoped out on evidence (D-025).
 
 ## Working agreement
 - **Read [PROJECT.md](PROJECT.md) at the start of every session.** It holds the current state, decisions, open questions and next steps.

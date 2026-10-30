@@ -101,6 +101,18 @@ embedding:     [0.012, -0.84, ...]                ← computed from search_text
 
 ---
 
+## Do you actually need multimodal RAG? What IndexIt showed
+
+I started IndexIt planning a multimodal build, because annual reports "have charts". Before building it, the evidence said otherwise:
+- **Few images, little information in them.** The parsing spike found only 12 embedded images across the first four 10-Ks.
+- **The one recurring chart repeats its data.** The 5-year stock performance graph has the same numbers printed as a table right below it.
+- **Tables carry the numbers, and they're text.** Docling extracts them with their year headers intact; every key figure checked was there.
+- **The evals agreed.** The one chart-type question was answered correctly from the surrounding text, and no error in any eval run came from not seeing an image.
+
+**Decision (D-025):** no multimodal layer. It would add cost (a vision call per chart, or heavy image-embedding models) and complexity without better answers for these documents.
+
+**The lesson:** pick the technique from the documents and the evals, not from the hype. Multimodal earns its place when the meaning lives only in the picture: investor presentations, glossy annual reports, ESG reports, scanned filings.
+
 ## Claude API vs. Ollama, and why RAM matters
 
 Both fill the **same slot** in the pipeline, the "brain" LLM that reads retrieved chunks and writes the answer. They differ in **where the model runs**:
