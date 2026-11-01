@@ -41,7 +41,8 @@ Point IndexIt at a folder of financial PDFs (annual reports, 10-Ks, investor dec
 ## 3. Current State
 
 **Status:** Baseline simple RAG built. **MCP server + Claude Code agent built and working** on Riya's Pro subscription (personal use only). Riya is the only user (2026-10-23). Next: try the latency experience, then decide whether an API version is needed. Not yet formally scored.
-**Last updated:** 2026-10-21
+**Last updated:** 2026-11-01
+**Latest (2026-11-01):** key-figures table + `compare_companies` tool + Compare view in the app (D-026). Cross-company eval 8/9, answers 30–45% faster and up to 6× cheaper; extracted figures match the SEC's XBRL data (251/254 exact, 0 different).
 
 **Code** (`src/indexit/`):
 | File | Role |
@@ -54,7 +55,8 @@ Point IndexIt at a folder of financial PDFs (annual reports, 10-Ks, investor dec
 | `search.py` | Shared retrieval used by the CLI and the MCP server |
 | `documents.py` | Filing metadata from the cover page: company, fiscal year, period end |
 | `prompts.py` | Shared prompts: D-012 format + D-010/D-011 rules; API and agent variants |
-| `mcp_server.py` | **MCP server** (D-013): `list_filings`, `search_filings`, `read_page` tools + `indexit_answer` prompt. `read_page` only opens files from the filings folder (path traversal tested ✅) |
+| `mcp_server.py` | **MCP server** (D-013): `list_filings`, `search_filings`, `compare_companies` (D-026), `read_page` tools + `indexit_answer` prompt. `read_page` only opens files from the filings folder (path traversal tested ✅) |
+| `figures.py` | **Key figures** (D-026): rules read each filing's income statement and balance sheet from the Docling cache; checks; `comparison()` (ranked, with sources), `compare()` (text for the agent), `insights()` (rule-based sentences for the app) |
 | `agent.py` | **Claude Code brain** (D-014) via the Agent SDK, locked to IndexIt tools (6 guardrail layers, see file docstring) |
 
 **Agent mode results (2026-10-23, Riya's Pro subscription):**
@@ -130,6 +132,8 @@ Two files have random UUID names, so company and year **must be detected from th
 ---
 
 ## 4. Next Steps
+
+0000000. **(2026-11-01) Key figures (D-026): built and measured.** Next: re-run #57 (units fix) with the next eval; run the cross-company **test** questions (#5, 51, 53, 55) once, when the system is final; portfolio case study: update the system design (new tool, key-figures store) when Riya wants it on the site. Deferred: industry groups (SEC SIC codes as suggestions, once 3+ companies share an industry) and company trends in the Compare view.
 
 000000. **(2026-10-27) Decided and built; stage 2 running:**
    1. ~~Answering model~~ ✅ **Sonnet 5.5 high** (D-021 accepted). No Opus re-run: Opus would need to clearly *beat* Sonnet (Sonnet is also faster and ~2.5× lighter), the gap is wide, and each eval question uses the plan twice (answer + Opus check). If Sonnet errors persist, try Opus only on the failed questions.
@@ -459,6 +463,14 @@ Evidence: `eval/runs/2026-10-26_1639/analysis.md` (27 dev questions, every flag 
 - **Why it matters (Riya):** the project began as "multimodal RAG"; working through what the documents and the user actually need showed it wasn't, and that judgement is the learning. Multimodal remains the right tool for chart-heavy documents (investor decks, ESG reports, scans) if IndexIt ever covers them.
 - Supersedes the "multimodal (page images) only if table errors remain" plan and the investor-deck learning project.
 
+### D-026 · Key-figures table + compare tool + Compare view · **Accepted + built 2026-11-01** (Riya)
+- **Why:** questions that rank companies ("who spends most on R&D?") took one search per company: 7 searches at 7 companies, ~100 at 100. Riya picked this from the "If I took it further" list.
+- **Choices (Riya):** (1) **rules in code** read the figures (free, instant, repeatable, run when a filing is added; anything unsure is left out and the agent falls back to search), not Claude reading each statement or SEC XBRL (no page citations); (2) **income statement + balance sheet**: revenue, cost of revenue, gross profit, R&D, operating income, net income, cash, total assets, debt (EPS left out: not comparable across companies); (3) **a compare tool** (`compare_companies(metric, fiscal_year, companies)`), not text-to-SQL.
+- **How:** pick the consolidated statement by title (not MD&A summaries or long captions); read each column's period end and units from the headers; match row labels to standard names (bracketed notes ignored); net income = the company's own share; debt = debt lines on the face of the balance sheet; banks (a "Deposits" liability) excluded from cost, R&D, cash and debt comparisons. Checks drop figures that don't add up. Latest filing wins (D-011); restatements are noted. Ratios and growth are calculated by code, with their inputs and units shown.
+- **Evidence:** figures vs SEC XBRL: 251/254 exact, 0 different. Cross-company eval (run `2026-11-01_1328`): 8/9, 100% coverage, median 10 s; #52 went from 7 searches / 25 s / $0.19 to 2 calls / 14 s / $0.03. The one flag came from missing units in the tool's output (fixed).
+- **App (Riya):** *+ Add · Compare* in the Library header; Compare opens in the main pane: figure chips, a year picker, ranked bars with period and source page, what's not compared and why, and **rule-based insights** (leader, lowest, anything below zero, rank divergence) each with *Ask IndexIt why →* (starts a new conversation; plan usage only when clicked). No Claude-written summaries (cost per view, overreach risk). **Side by side (Riya, 2026-11-01):** a second tab compares two companies on every figure (Size and growth · Profitability · Investment · Balance sheet), each value with its page, a Difference column (× for amounts, percentage points for ratios), missing lines per company, a fiscal-year note when year-ends differ, and rule-based pair insights (relative size, growth in opposite directions, the widest margin gaps of 3+ points). Banks are now also excluded from total-asset comparisons. **Industry groups deferred (Riya):** with 10 companies most industries have one or two members; revisit with SEC industry codes (SIC) as suggestions once the library has 3+ companies in several industries. Company trends deferred.
+- **Limits:** labels outside the known list stay blank (e.g. Amazon's "technology and infrastructure" is not R&D, by design); Amazon and Alphabet show long-term debt only; cash excludes short-term investments (stated in the notes).
+
 ### D-008 · Evaluation-first · **Proposed**
 Build the golden question set **before** tuning. Every later decision (parser, model, chunk size, reranker) gets judged by its score instead of by gut feel. This is the main place where product judgment drives engineering.
 
@@ -540,3 +552,5 @@ Build the golden question set **before** tuning. Every later decision (parser, m
 - **2026-10-30, D-025 (Riya):** multimodal build dropped; the learning is that evidence showed 10-Ks don't need it. Updated CLAUDE.md, README, LEARNING.md (new section), and the portfolio site's Now section and case study.
 - **2026-10-30: IndexIt declared complete (Riya: "happy with the current state").** The verification pass (draft checked claim by claim against its sources before display; est. +10 s and 1.5–2× plan usage per answer) is not planned; parked with the key-figures table and the search options. Portfolio: "Now" reads "IndexIt is complete. I'm choosing the next problem worth building for."; case study section 08 is now "If I took it further".
 - **2026-10-30:** Captured how this project was run as a personal Claude Code skill, `riya-project-playbook` (project docs, eval-first practice, publishing guardrails, portfolio site), for use in every future project.
+- **2026-11-01, D-026 (Riya): key-figures table.** Rules read every filing's income statement and balance sheet (`figures.py`); 251/254 figures match SEC XBRL exactly, 0 differ (`spikes/check_figures_xbrl.py`). New MCP tool `compare_companies`; prompt tells the agent to use it for rankings and search for the rest. Eval set: library grew to 10 companies → #52/#53 keys updated, #56 rewritten (no longer unanswerable), #57–59 added. Cross-company eval 8/9 (one flag from missing units in tool output, fixed); #52 7 searches → 2 calls, 25 → 14 s. **Compare view** in the app (Riya: *+ Add · Compare* in the Library; rule-based insights + *Ask IndexIt why*), checked in light, dark and phone screenshots. Portfolio: "key-figures table" removed from the case study's "If I took it further".
+- **2026-11-01 (later):** Riya asked for industry comparisons; Claude's critique: right lens, but most industries in a 10-company library have 1–2 members, labels are slippery (Amazon: retail or cloud?) and "correlation" is noise at this size. **Riya: groups later, 1:1 now.** Built **Side by side** (two companies, every figure, sources, differences, pair insights); banks also excluded from total assets. Checked in light/dark/phone screenshots (NVIDIA vs AMD, Walmart vs Amazon).

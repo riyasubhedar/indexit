@@ -29,7 +29,10 @@
       <section class="side-section library" aria-labelledby="library-title">
         <div class="section-head">
           <h2 id="library-title">Library</h2>
-          <button type="button" id="add-btn" class="link">+ Add filing</button>
+          <div class="section-actions">
+            <button type="button" id="add-btn" class="link">+ Add</button>
+            <button type="button" id="compare-btn" class="link" aria-controls="compare">Compare</button>
+          </div>
         </div>
         <p class="library-count" id="library-count"></p>
         <div class="library-scroll">
@@ -52,6 +55,30 @@
           </ol>
         </section>
       </main>
+
+      <!-- Compare (D-026): one figure across every company, from the key-figures table. Uses no plan. -->
+      <section id="compare" class="compare" hidden aria-labelledby="compare-title">
+        <div class="compare-head">
+          <h2 id="compare-title">Compare companies</h2>
+          <button type="button" id="compare-back" class="link">← Back to conversation</button>
+        </div>
+        <div class="compare-tabs" role="tablist" aria-label="How to compare">
+          <button type="button" role="tab" class="tab" data-mode="rank" aria-selected="true">Rank all</button>
+          <button type="button" role="tab" class="tab" data-mode="pair" aria-selected="false">Side by side</button>
+        </div>
+        <div class="compare-controls">
+          <div class="chips" id="compare-chips" role="group" aria-label="Figure to compare"></div>
+          <div class="pair-pickers" id="pair-pickers" hidden>
+            <select id="pair-a" aria-label="First company"></select>
+            <span class="muted">vs</span>
+            <select id="pair-b" aria-label="Second company"></select>
+          </div>
+          <label class="compare-year">Year
+            <select id="compare-year"><option value="">Latest</option></select>
+          </label>
+        </div>
+        <div id="compare-body" aria-live="polite"></div>
+      </section>
 
       <form id="composer" autocomplete="off">
         <span class="prompt" aria-hidden="true">&gt;</span>

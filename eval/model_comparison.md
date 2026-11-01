@@ -93,3 +93,32 @@ Notes:
 - Previous failures #18 and #25 now pass.
 
 **Reading it:** overreach-type flags on dev went 2 → 1, and extra is clean. But with one run each, ±1–2 failures is within run-to-run noise: **no measurable change** from the wording rules. Each run fails a *different* 2–3 questions, roughly 1 answer in 10, with a mixed bag of causes (overreach, period, relationship direction). Coverage and format held, so the rules cost nothing. Kept.
+
+## Stage 4: run `2026-11-01_1328`: key-figures table + `compare_companies` (D-026), 9 cross-company questions
+
+Sonnet 5.5 high, dev + extra cross-company questions (#6, 14, 15, 52, 54, 56, 57, 58, 59). The library had grown to 10 companies, so #52/#53 keys were updated, #56 was rewritten (Alphabet is now in the library) and #57–59 were added for the new figures (their keys checked against SEC XBRL data). Test questions (#5, 51, 53, 55) held out.
+
+| Metric | **Stage 4** |
+|---|---|
+| Strict accuracy | **8/9** |
+| Wrong / unsupported claims | 1 / 0 |
+| Coverage | 100% |
+| Median / 90th pct time | 10 s / 14 s |
+| Avg cost per answer (API price) | $0.03 |
+| Format OK / 3 follow-ups | 9/9 |
+
+**Same questions, before and after** (before = stage 3, 7-company library):
+
+| # | Question | Before | After |
+|---|---|---|---|
+| 52 | Which company made the most profit last year? | 7 searches · 25.4 s · $0.19 | 2 compare calls · 13.8 s · $0.03 |
+| 54 | Is Tesla more profitable than Apple? | 2 searches · 17.4 s · $0.12 | 4 compare calls · 10.5 s · $0.02 |
+| 6 | Compare NVIDIA's and AMD's revenue in 2025 | 2 searches · 15.7 s · $0.09 | 2 compare calls · 10.2 s · $0.04 |
+| 56 | Google vs Microsoft this year | (was unanswerable) | 5 compare calls · 11.4 s · $0.03 |
+
+#15 (employee counts, not in the table) correctly used search only.
+
+**The one flag (#57) came from the tool, not the agent:** growth rows showed their inputs without units ("130,497 → 215,938"), so Sonnet added "the table doesn't state units", which is false. Fixed: ratio and growth inputs now read "$130,497M → $215,938M". #57 to be re-run with the next eval.
+
+**Figures accuracy (free, before any answers):** all 254 extracted figures compared with the SEC's XBRL data for the same periods (`spikes/check_figures_xbrl.py`): **251 match exactly, 0 differ**, 3 have no comparable tag (Expedia's cost of revenue, confirmed by hand). Debt reviewed by hand: matches XBRL's components; Amazon and Alphabet show long-term debt only on the balance sheet, and Tesla's debt lines include finance leases (both stated in the tool's notes).
+

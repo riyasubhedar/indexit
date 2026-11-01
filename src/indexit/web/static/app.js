@@ -316,6 +316,7 @@ function clearThread() {
 
 async function openConversation(id) {
   const saved = await (await fetch(`/api/conversations/${encodeURIComponent(id)}`)).json();
+  closeCompare();
   clearThread();
   conversationId = saved.id;
   saved.exchanges.forEach(showSaved);
@@ -734,7 +735,8 @@ document.addEventListener("click", (e) => {
 document.getElementById("panel-close").addEventListener("click", () => { panel.hidden = true; });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") panel.hidden = true; });
 
-document.getElementById("new-btn").addEventListener("click", async () => {
+async function startNewConversation() {
+  closeCompare();
   clearThread();
   conversationId = null;
   input.value = "";
@@ -742,6 +744,184 @@ document.getElementById("new-btn").addEventListener("click", async () => {
   input.focus();
   await fetch("/api/new", { method: "POST" });
   loadHistory();
+}
+
+document.getElementById("new-btn").addEventListener("click", startNewConversation);
+
+// ---------- Compare (D-026) ----------
+// One figure across every company, ranked, from the key-figures table (no plan usage). Insights are
+// written by rules on the server; "Ask IndexIt why" hands one to a new conversation for the reasons.
+
+const compareView = document.getElementById("compare");
+const compareChips = document.getElementById("compare-chips");
+const compareYear = document.getElementById("compare-year");
+const compareBody = document.getElementById("compare-body");
+let compareMetric = "net_margin";
+let compareMode = "rank";
+const pairPickers = document.getElementById("pair-pickers");
+const pairA = document.getElementById("pair-a");
+const pairB = document.getElementById("pair-b");
+
+function openCompare() {
+  thread.hidden = true;
+  form.hidden = true;
+  compareView.hidden = false;
+  closeSidebar();
+  scroller.scrollTo(0, 0);
+  loadCompare();
+}
+
+function closeCompare() {
+  if (compareView.hidden) return;
+  compareView.hidden = true;
+  thread.hidden = false;
+  form.hidden = false;
+}
+
+const longDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+
+function pageLinks(sources) {
+  const seen = new Set();
+  return sources.filter((s) => !seen.has(`${s.file}:${s.page}`) && seen.add(`${s.file}:${s.page}`))
+    .map((s) => `<a href="#" role="button" class="cite-page" data-file="${escapeHtml(s.file)}" data-page="${s.page}"` +
+      ` title="${escapeHtml(`${s.document}, p.${s.page}`)}">p.${s.page}</a>`).join(" ");
+}
+
+function barsHtml(rows) {
+  // Bars start at zero; if any value is below zero, zero moves right so those bars grow left.
+  const low = Math.min(0, ...rows.map((r) => r.value));
+  const high = Math.max(0, ...rows.map((r) => r.value));
+  const span = high - low || 1;
+  const zero = (-low / span) * 100;
+  return `<ol class="bars">${rows.map((r) => {
+    const width = (Math.abs(r.value) / span) * 100;
+    const left = r.value < 0 ? zero - width : zero;
+    const detail = [r.inputs, ...r.sources.map((s) => `${s.document}, p.${s.page} ("${s.line}")`)].filter(Boolean).join("\n");
+    return `<li class="bar-row" title="${escapeHtml(detail)}">` +
+      `<span class="bar-company">${escapeHtml(r.company)}</span>` +
+      `<span class="bar-track" aria-hidden="true">${low < 0 ? `<span class="bar-zero" style="left:${zero}%"></span>` : ""}` +
+      `<span class="bar${r.value < 0 ? " negative" : ""}" style="left:${left}%;width:${Math.max(width, 0.6)}%"></span></span>` +
+      `<span class="bar-value">${escapeHtml(r.shown)}</span>` +
+      `<span class="bar-meta">FY${r.fiscal_year} · ends ${longDate(r.period_end)} · ${pageLinks(r.sources)}` +
+      `${r.inputs ? `<span class="bar-inputs">${escapeHtml(r.inputs)}</span>` : ""}</span></li>`;
+  }).join("")}</ol>`;
+}
+
+function loadCompare() {
+  compareChips.hidden = compareMode !== "rank";
+  pairPickers.hidden = compareMode !== "pair";
+  for (const tab of document.querySelectorAll(".compare-tabs .tab")) {
+    tab.setAttribute("aria-selected", String(tab.dataset.mode === compareMode));
+  }
+  return compareMode === "pair" ? loadPair() : loadRank();
+}
+
+function extrasHtml(data) {
+  // Insights (each with "Ask IndexIt why") and notes: shared by both views.
+  const insights = data.insights.length
+    ? `<h3 class="compare-sub">What stands out</h3><ul class="insights">${data.insights.map((i) =>
+      `<li>${escapeHtml(i.text)} <button type="button" class="ask-why" data-question="${escapeHtml(i.ask)}">Ask IndexIt why →</button></li>`).join("")}</ul>` : "";
+  const notes = data.notes.length
+    ? `<ul class="compare-notes">${data.notes.map((n) => `<li>${escapeHtml(n)}</li>`).join("")}</ul>` : "";
+  return insights + notes +
+    '<p class="hint">Figures are read from each filing\'s income statement and balance sheet. Click a page to check it.</p>';
+}
+
+function fillCompanies(companies) {
+  if (pairA.options.length) return;
+  const options = companies.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+  pairA.innerHTML = options;
+  pairB.innerHTML = options;
+  pairB.selectedIndex = Math.min(1, companies.length - 1);
+}
+
+function pairCell(cell) {
+  if (!cell) return '<td class="pair-none">—</td>';
+  return `<td><span class="pair-value">${escapeHtml(cell.shown)}</span> ${pageLinks(cell.sources)}` +
+    `${cell.inputs ? `<span class="bar-inputs">${escapeHtml(cell.inputs)}</span>` : ""}</td>`;
+}
+
+async function loadPair() {
+  if (!pairA.options.length) await loadRank(true); // company and year lists come with the ranking
+  const params = new URLSearchParams({ a: pairA.value, b: pairB.value, year: compareYear.value });
+  compareBody.innerHTML = '<p class="muted">Loading…</p>';
+  const response = await fetch(`/api/compare/pair?${params}`);
+  const data = await response.json();
+  if (!response.ok) {
+    compareBody.innerHTML = `<p class="error">${escapeHtml(data.error || "Couldn't load the figures. Please try again.")}</p>`;
+    return;
+  }
+  const head = data.companies.map((c, i) => {
+    const p = data.periods[i];
+    return `<th scope="col">${escapeHtml(c)}${p ? `<span class="pair-period">FY${p.fiscal_year} · ends ${longDate(p.period_end)}</span>` : ""}</th>`;
+  }).join("");
+  const body = data.sections.map((section) =>
+    `<tr class="pair-section"><th colspan="4" scope="colgroup">${escapeHtml(section.title)}</th></tr>` +
+    section.rows.map((r) => `<tr><th scope="row">${escapeHtml(r.name)}</th>${r.cells.map(pairCell).join("")}` +
+      `<td class="pair-gap">${escapeHtml(r.gap)}</td></tr>`).join("")).join("");
+  const missing = Object.keys(data.missing).length
+    ? `<div class="compare-missing"><h4>Not compared</h4><ul>${Object.entries(data.missing).map(([c, reasons]) =>
+      `<li><b>${escapeHtml(c)}:</b> ${reasons.map(escapeHtml).join(" ")}</li>`).join("")}</ul></div>` : "";
+  compareBody.innerHTML =
+    `<h3 class="compare-label">${escapeHtml(data.companies.join(" and "))}</h3>` +
+    `<p class="compare-basis">${compareYear.value ? `Fiscal year ${escapeHtml(compareYear.value)}` : "Each company's latest fiscal year"} · US$ millions unless shown as %</p>` +
+    `<div class="pair-scroll"><table class="pair-table"><thead><tr><th scope="col"><span class="sr-only">Figure</span></th>${head}` +
+    `<th scope="col" title="× = how many times larger · pts = percentage points, first company minus second">Difference</th></tr></thead>` +
+    `<tbody>${body}</tbody></table></div>` + missing + extrasHtml(data);
+}
+
+async function loadRank(listsOnly = false) {
+  const params = new URLSearchParams({ metric: compareMetric, year: compareYear.value });
+  compareBody.innerHTML = '<p class="muted">Loading…</p>';
+  let data;
+  try {
+    const response = await fetch(`/api/compare?${params}`);
+    data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+  } catch {
+    compareBody.innerHTML = '<p class="error">Couldn\'t load the figures. Please try again.</p>';
+    return;
+  }
+  fillCompanies(data.companies);
+  compareChips.innerHTML = data.metrics.map((m) =>
+    `<button type="button" class="chip" data-metric="${m.id}" aria-pressed="${m.id === compareMetric}">${escapeHtml(m.name)}</button>`).join("");
+  const chosen = compareYear.value;
+  compareYear.innerHTML = '<option value="">Latest</option>' +
+    data.years.map((y) => `<option value="${y}"${String(y) === chosen ? " selected" : ""}>FY${y}</option>`).join("");
+  if (listsOnly) return;
+  const missing = data.missing.length
+    ? `<div class="compare-missing"><h4>Not compared</h4><ul>${data.missing.map((m) =>
+      `<li><b>${escapeHtml(m.company)}:</b> ${escapeHtml(m.reason)}</li>`).join("")}</ul></div>` : "";
+  compareBody.innerHTML =
+    `<h3 class="compare-label">${escapeHtml(data.label)}</h3>` +
+    (data.meaning ? `<p class="compare-meaning">${escapeHtml(data.meaning)}</p>` : "") +
+    `<p class="compare-basis">${data.unit === "%" ? "" : `${escapeHtml(data.unit)} · `}${escapeHtml(data.basis)} · ranked highest first</p>` +
+    (data.rows.length ? barsHtml(data.rows) : '<p class="muted">No company has this figure for that year.</p>') +
+    missing + extrasHtml(data);
+}
+
+document.getElementById("compare-btn").addEventListener("click", openCompare);
+document.getElementById("compare-back").addEventListener("click", () => { closeCompare(); input.focus(); });
+compareYear.addEventListener("change", loadCompare);
+pairA.addEventListener("change", loadCompare);
+pairB.addEventListener("change", loadCompare);
+document.querySelector(".compare-tabs").addEventListener("click", (e) => {
+  const tab = e.target.closest(".tab");
+  if (!tab || tab.dataset.mode === compareMode) return;
+  compareMode = tab.dataset.mode;
+  loadCompare();
+});
+compareChips.addEventListener("click", (e) => {
+  const chip = e.target.closest(".chip");
+  if (!chip) return;
+  compareMetric = chip.dataset.metric;
+  loadCompare();
+});
+compareBody.addEventListener("click", async (e) => {
+  const why = e.target.closest(".ask-why");
+  if (!why) return;
+  await startNewConversation();
+  ask(why.dataset.question);
 });
 
 // Narrow windows: the left column opens as an overlay.

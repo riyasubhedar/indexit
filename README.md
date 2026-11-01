@@ -14,6 +14,7 @@ IndexIt is for people who find annual filings dense and don't know what to look 
 - **Grows with you.** Add filings by uploading PDFs (several at once) or by company and year from the SEC. Each one is checked against its cover page before it joins the library, and is searchable in under a minute.
 - **Remembers conversations.** Go back to an earlier conversation and Claude still has its context.
 - **Stays in scope.** Off-topic questions get a one-line note on what IndexIt covers, not a guess.
+- **Compares companies at a glance.** *Compare* (in the Library) ranks every company on revenue, profit, margins, R&D, growth, cash or debt, with the source page beside each number and a few plain-English observations. A *Side by side* tab puts two companies next to each other on every figure. Each observation has an *Ask IndexIt why* link for the reasons behind it.
 
 ## How it works
 
@@ -26,20 +27,23 @@ flowchart LR
   end
   subgraph Answering
     UI["Web app"] --> Agent["Claude Code agent<br/>(Sonnet 5.5)"]
-    Agent -- "IndexIt tools only (MCP)" --> MCP["IndexIt MCP server:<br/>search_filings · read_page"]
+    Agent -- "IndexIt tools only (MCP)" --> MCP["IndexIt MCP server:<br/>search_filings · compare_companies · read_page"]
     MCP --> DB
     MCP --> Tables
+    Tables --> Figures[("Key figures:<br/>statement lines per company and year")]
+    MCP --> Figures
   end
 ```
 
 - **Agentic RAG.** Claude decides what to search for (often several searches per question) through an MCP server that exposes only IndexIt's tools.
 - **Company-aware, latest-first search.** A question about Microsoft only searches Microsoft's filings, and most results come from the latest filing unless another year is named.
+- **Key figures for comparisons.** Rules read each filing's income statement and balance sheet into one table (revenue, profit, R&D, cash, debt and more), with the page of every number. Questions that rank companies take one lookup instead of one search per company, and ratios are calculated by code, not by the model. Every extracted figure was checked against the SEC's own structured data: 251 of 254 match exactly, none differ.
 - **Small-to-big retrieval for tables.** Search finds pages through text passages, and each result page's structured tables are attached, so numbers stay tied to their column headers.
 - **Guardrails enforced by configuration, not just the prompt.** The agent has no built-in tools (no files, shell or web), can call only IndexIt's tools, ignores personal Claude settings, sees no other connected apps, and aborts if any other tool appears. Text inside filings is treated as data, never as instructions.
 
 ## Decisions, backed by evals
 
-Every decision is logged with its alternatives and trade-offs in [PROJECT.md](PROJECT.md). Quality is judged against an eval set rather than by eye: [56 questions](eval/golden_questions.md) across 7 companies, split into **dev** (used for tuning) and **test** (held out, to catch overfitting). Each answer is checked claim by claim by a separate fact-checking agent, and its flags are reviewed against the filings.
+Every decision is logged with its alternatives and trade-offs in [PROJECT.md](PROJECT.md). Quality is judged against an eval set rather than by eye: [59 questions](eval/golden_questions.md) across 10 companies, split into **dev** (used for tuning) and **test** (held out, to catch overfitting). Each answer is checked claim by claim by a separate fact-checking agent, and its flags are reviewed against the filings.
 
 **Choosing the model** (27 dev questions; full write-up in [eval/model_comparison.md](eval/model_comparison.md)):
 

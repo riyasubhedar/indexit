@@ -7,6 +7,7 @@ import pymupdf
 from mcp.server.mcpserver import MCPServer
 
 from indexit.documents import FILINGS_DIR, format_filings, list_filings as _list_filings
+from indexit.figures import compare
 from indexit.prompts import ANSWER_FORMAT, ROLE
 from indexit.search import retrieve, warm_up
 from indexit.tables import page_tables
@@ -80,6 +81,20 @@ def _result_page_tables(passages: list[dict], labels: dict[str, str]) -> str:
         return ""
     return ("\n\nStructured tables from the pages above (column headers kept; prefer these for numbers "
             "and years):\n\n" + "\n\n".join(blocks))
+
+
+@server.tool()
+def compare_companies(metric: str, fiscal_year: int | None = None, companies: list[str] | None = None) -> str:
+    """Rank companies on one standard figure in a single call (D-026), with each value's fiscal year,
+    period end and source page. Figures come from each filing's own income statement and balance sheet;
+    ratios and growth are calculated by code, with their inputs shown.
+
+    `metric`: revenue, cost_of_revenue, gross_profit, rd, operating_income, net_income, cash,
+    total_assets, debt, gross_margin, operating_margin, net_margin, rd_to_revenue, revenue_growth,
+    net_income_growth. `fiscal_year`: e.g. 2025 (default: each company's latest). `companies`: names
+    to include (default: every company in the library).
+    """
+    return compare(metric, fiscal_year, companies)
 
 
 @server.tool()

@@ -31,6 +31,7 @@ from starlette.staticfiles import StaticFiles
 from indexit import library
 from indexit.agent import AgentRun, AgentSession, dig_deeper_questions
 from indexit.documents import FILINGS_DIR, PROJECT_DIR, aliases_for, describe, format_filings, list_filings
+from indexit import figures
 from indexit.tables import page_tables
 
 MODEL, EFFORT = "sonnet", "high"  # D-021
@@ -235,6 +236,11 @@ def _describe(tool: str, args: dict, labels: dict[str, str]) -> str:
         return f"Reading {labels.get(args.get('file'), args.get('file'))}, p.{args.get('page')}"
     if tool == "list_filings":
         return "Checking which filings are available"
+    if tool == "compare_companies":
+        metric = {"rd": "R&D", "rd_to_revenue": "R&D as a share of revenue"}.get(
+            args.get("metric"), str(args.get("metric", "")).replace("_", " "))
+        year = f" for FY{args['fiscal_year']}" if args.get("fiscal_year") else ""
+        return f"Comparing {metric} across companies{year}"
     return f"Using {tool}"
 
 
@@ -473,6 +479,39 @@ async def page(request: Request) -> JSONResponse:
     })
 
 
+# The Compare view's figures, in the order of its chips (D-026). Reading them uses no plan: they come
+# from the key-figures table, not from Claude.
+COMPARE_METRICS = ["revenue", "net_income", "net_margin", "operating_margin", "gross_margin", "rd",
+                   "rd_to_revenue", "revenue_growth", "cash", "debt"]
+
+
+async def compare(request: Request) -> JSONResponse:
+    """One figure across every company, ranked, with sources, plus rule-based insights."""
+    metric = request.query_params.get("metric", "revenue")
+    year = request.query_params.get("year", "")
+    if metric not in COMPARE_METRICS or (year and not year.isdigit()):
+        return JSONResponse({"error": "Unknown figure or year"}, status_code=400)
+    result = await asyncio.to_thread(figures.comparison, metric, int(year) if year else None)
+    result["insights"] = await asyncio.to_thread(figures.insights, result)
+    result["metrics"] = [{"id": m, "name": figures.short_name(m)} for m in COMPARE_METRICS]
+    result["companies"] = sorted({f.company for f in list_filings()})
+    return JSONResponse(result)
+
+
+async def compare_pair(request: Request) -> JSONResponse:
+    """Two companies side by side on every figure, with sources and rule-based insights."""
+    first, second = request.query_params.get("a", ""), request.query_params.get("b", "")
+    year = request.query_params.get("year", "")
+    if year and not year.isdigit():
+        return JSONResponse({"error": "Unknown year"}, status_code=400)
+    try:
+        result = await asyncio.to_thread(figures.side_by_side, first, second, int(year) if year else None)
+    except ValueError as error:
+        return JSONResponse({"error": str(error)}, status_code=400)
+    result["all_companies"] = sorted({f.company for f in list_filings()})
+    return JSONResponse(result)
+
+
 def _rows(markdown: str) -> list[list[str]]:
     """Markdown table -> rows of cells (header first), skipping the |---| separator."""
     rows = []
@@ -503,6 +542,8 @@ app = Starlette(
         Route("/api/conversations", conversation_list),
         Route("/api/conversations/{id}", conversation),
         Route("/api/page", page),
+        Route("/api/compare", compare),
+        Route("/api/compare/pair", compare_pair),
         Route("/api/library", library_state),
         Route("/api/library/upload", library_upload, methods=["POST"]),
         Route("/api/library/fetch", library_fetch, methods=["POST"]),

@@ -1,0 +1,50 @@
+{
+  "started": "2026-11-01T13:28:56",
+  "configs": [
+    "sonnet:high"
+  ],
+  "set": "dev,extra",
+  "question_ids": [
+    6,
+    14,
+    15,
+    52,
+    54,
+    56,
+    57,
+    58,
+    59
+  ],
+  "checker": {
+    "model": "opus",
+    "effort": "high"
+  },
+  "index_table": "clean_v2",
+  "hybrid": false,
+  "prefer_latest": true,
+  "top_k": 8,
+  "prompt_sha256": "8cdf5f3b3551",
+  "claude_agent_sdk": "0.2.173",
+  "filings": [
+    "Advanced Micro Devices FY2024 10-K",
+    "Advanced Micro Devices FY2025 10-K",
+    "Alphabet FY2025 10-K",
+    "Amazon.com FY2023 10-K",
+    "Amazon.com FY2024 10-K",
+    "Amazon.com FY2025 10-K",
+    "Apple FY2023 10-K",
+    "Apple FY2024 10-K",
+    "Apple FY2025 10-K",
+    "Expedia Group FY2025 10-K",
+    "JPMorgan Chase FY2024 10-K",
+    "JPMorgan Chase FY2025 10-K",
+    "Microsoft FY2025 10-K",
+    "Microsoft FY2026 10-K",
+    "NVIDIA FY2025 10-K",
+    "NVIDIA FY2026 10-K",
+    "Tesla FY2024 10-K",
+    "Tesla FY2025 10-K",
+    "Walmart FY2024 10-K",
+    "Walmart FY2025 10-K"
+  ]
+}

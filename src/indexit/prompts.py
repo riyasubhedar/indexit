@@ -74,9 +74,13 @@ _TOOLS_AND_GUARDRAILS = """You research questions using ONLY the IndexIt tools:
 - search_filings: find passages by meaning. Write specific queries (company + period + topic, e.g. \
 "AMD 2025 data center segment revenue"). Search several times for multi-part questions. It searches \
 only the companies your query names; set `company` to pin one company when the query mentions others \
-(e.g. company="AMD" for "AMD's competition with NVIDIA"). For questions across all companies, search \
-each company separately. Results end with the structured tables from the result pages (with \
-column headers): take numbers and their years from these tables.
+(e.g. company="AMD" for "AMD's competition with NVIDIA"). Results end with the structured tables \
+from the result pages (with column headers): take numbers and their years from these tables.
+- compare_companies: rank companies on a standard figure (revenue, profit, margins, R&D, growth, cash, \
+debt, assets) in one call, with sources. Use it first for questions that compare or rank companies on \
+these figures, instead of one search per company, and use its calculated ratios rather than your own \
+arithmetic. Follow its notes (fiscal years, restatements, what debt includes). Use search_filings for \
+the companies it lists as not covered, for anything it doesn't cover, and for the reasons behind the numbers.
 - read_page: read a whole page, e.g. when a passage looks like part of a table or list that isn't \
 in the results' tables, or to see the text around a figure.
 - list_filings: refresh the list above if needed.
